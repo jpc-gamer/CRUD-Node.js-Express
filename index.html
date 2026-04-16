@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Usuários</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="container">
+
+    <h2>USUÁRIOS</h2>
+
+    <div class="form">
+        <div class="input-group">
+            <label>Nome</label>
+            <input type="text" id="nome">
+        </div>
+
+        <div class="input-group">
+            <label>E-mail</label>
+            <input type="email" id="email">
+        </div>
+
+        <div class="input-group">
+            <label>Telefone</label>
+            <input type="text" id="telefone">
+        </div>
+
+        <div class="input-group">
+            <label>Data de Nascimento</label>
+            <input type="date" id="data">
+        </div>
+
+        <button class="btn" onclick="salvar()">Salvar</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>E-mail</th>
+                <th>Telefone</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+
+        <tbody id="tabelaUsuarios"></tbody>
+    </table>
+
+</div>
+
+<script>
+const api = "http://localhost:3000/usuarios";
+const tabela = document.getElementById("tabelaUsuarios");
+
+async function carregarUsuarios() {
+    const res = await fetch(api);
+    const dados = await res.json();
+
+    tabela.innerHTML = "";
+
+    dados.forEach(user => {
+        tabela.innerHTML += `
+        <tr>
+            <td contenteditable="false" onkeydown="handleEnter(event, ${user.id}, this)">${user.nome}</td>
+            <td contenteditable="false" onkeydown="handleEnter(event, ${user.id}, this)">${user.email}</td>
+            <td contenteditable="false" onkeydown="handleEnter(event, ${user.id}, this)">${user.telefone}</td>
+            <td>
+                <img src="img/editar-texto.png" class="icon" onclick="editar(${user.id}, this)">
+                <img src="img/excluir.png" class="icon" onclick="deletar(${user.id})">
+            </td>
+        </tr>
+        `;
+    });
+}
+
+async function salvar() {
+    const nome = document.getElementById("nome").value;
+    const email = document.getElementById("email").value;
+    const telefone = document.getElementById("telefone").value;
+    const data = document.getElementById("data").value;
+
+    if (!nome || !email || !telefone) {
+        alert("Preencha todos os campos!");
+        return;
+    }
+
+    await fetch(api, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            nome,
+            email,
+            telefone,
+            data_nascimento: data
+        })
+    });
+
+    document.getElementById("nome").value = "";
+    document.getElementById("email").value = "";
+    document.getElementById("telefone").value = "";
+    document.getElementById("data").value = "";
+
+    carregarUsuarios();
+}
+
+async function editar(id, el) {
+    const linha = el.parentElement.parentElement;
+    const colunas = linha.querySelectorAll("td");
+
+    const editando = el.classList.contains("editando");
+
+    if (!editando) {
+        colunas[0].contentEditable = "true";
+        colunas[1].contentEditable = "true";
+        colunas[2].contentEditable = "true";
+
+        colunas[0].focus();
+
+        el.src = "img/salvar.png";
+        el.classList.add("editando");
+
+    } else {
+        await salvarEdicao(id, linha, el);
+    }
+}
+
+async function salvarEdicao(id, linha, el) {
+    const colunas = linha.querySelectorAll("td");
+
+    const nome = colunas[0].innerText;
+    const email = colunas[1].innerText;
+    const telefone = colunas[2].innerText;
+
+    await fetch(`${api}/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome, email, telefone })
+    });
+
+    colunas[0].contentEditable = "false";
+    colunas[1].contentEditable = "false";
+    colunas[2].contentEditable = "false";
+
+    el.src = "img/editar-texto.png";
+    el.classList.remove("editando");
+}
+
+function handleEnter(event, id, td) {
+    if (event.key === "Enter") {
+        event.preventDefault();
+
+        const linha = td.parentElement;
+        const botaoEditar = linha.querySelector(".icon");
+
+        if (botaoEditar.classList.contains("editando")) {
+            salvarEdicao(id, linha, botaoEditar);
+        }
+    }
+}
+
+async function deletar(id) {
+    if (confirm("Deseja excluir?")) {
+        await fetch(`${api}/${id}`, {
+            method: "DELETE"
+        });
+
+        carregarUsuarios();
+    }
+}
+
+carregarUsuarios();
+</script>
+
+</body>
+</html>
